@@ -18,7 +18,7 @@ export async function onRequestPost({ request, env }) {
   const name = String(body.name || '').trim();
   const usernameRaw = String(body.username || '').trim();
   const password = String(body.password || '');
-  const role = ['admin', 'viewer_all', 'lead', 'sales'].includes(body.role) ? body.role : 'sales';
+  const role = ['admin', 'viewer_all', 'print_view', 'lead', 'sales'].includes(body.role) ? body.role : 'sales';
   const team = String(body.team || '');
 
   if (!name || !usernameRaw || password.length < 4) {

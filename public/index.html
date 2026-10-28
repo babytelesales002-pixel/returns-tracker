@@ -81,6 +81,7 @@ a{color:var(--accent-strong);}
 .role-tag{display:inline-block; padding:2px 9px; border-radius:99px; font-size:.74rem; font-weight:600;}
 .role-tag.admin{background:var(--good-soft); color:var(--good);}
 .role-tag.viewer_all{background:var(--accent-soft); color:var(--accent-strong);}
+.role-tag.print_view{background:var(--accent-soft); color:var(--accent-strong);}
 .role-tag.lead{background:var(--accent-soft); color:var(--accent-strong);}
 .role-tag.sales{background:var(--surface-2); color:var(--text-dim);}
 
@@ -150,6 +151,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent); outline
 
 .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--text); color:var(--bg); padding:10px 18px; border-radius:10px; font-size:.86rem; box-shadow:var(--shadow); z-index:60; opacity:0; transition:opacity .2s;}
 .toast.show{opacity:1;}
+
+@media print{
+  .watermark, .topbar, .tabs, .toolbar, #modalRoot, .toast, #btnPrint, .row-actions{ display:none !important; }
+  body{ background:#fff; padding:0; }
+  .card{ box-shadow:none; border:1px solid #ccc; }
+}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -229,6 +236,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent); outline
         <select id="dataSellerFilter" style="min-width:160px;"><option value="">พนักงานขายทั้งหมด</option></select>
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-ghost" id="btnPrint">พิมพ์รายงาน</button>
         <button class="btn btn-ghost" id="btnExportExcel">ส่งออก Excel (ทุกหน้า)</button>
         <button class="btn btn-ghost" id="btnImportExcel">นำเข้าไฟล์ Excel</button>
         <input type="file" id="fileImportExcel" accept=".xlsx,.xls,.csv" hidden>
@@ -324,6 +332,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent); outline
               <option value="sales">พนักงานขาย</option>
               <option value="lead">หัวหน้าทีม</option>
               <option value="viewer_all">ดูข้อมูลได้หมด (อ่านอย่างเดียว)</option>
+              <option value="print_view">ดูและพิมพ์ได้ (แก้ไขไม่ได้)</option>
               <option value="admin">แอดมิน</option>
             </select>
           </div>
@@ -342,13 +351,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent); outline
 
 <script>
 const REASONS = ["ลูกค้าปฏิเสธรับพัสดุ","ติดต่อลูกค้าไม่ได้","ที่อยู่ไม่ถูกต้อง","สินค้าชำรุด/ผิด","อื่นๆ"];
-const ROLE_LABEL = {admin:'แอดมิน', viewer_all:'ดูทั้งหมด (อ่านอย่างเดียว)', lead:'หัวหน้าทีม', sales:'พนักงานขาย'};
+const ROLE_LABEL = {admin:'แอดมิน', viewer_all:'ดูทั้งหมด (อ่านอย่างเดียว)', print_view:'ดูและพิมพ์ได้', lead:'หัวหน้าทีม', sales:'พนักงานขาย'};
 
 let me=null, isAdmin=false, myRole=null, myTeam='';
 let rows=[], teams=[], appUsers=[];
 let editingId=null, deleteArmedId=null;
 
-function canSeeAll(){ return isAdmin || myRole==='viewer_all'; }
+function canSeeAll(){ return isAdmin || myRole==='viewer_all' || myRole==='print_view'; }
 function fmtNum(n){ return (n||0).toLocaleString('th-TH'); }
 function monthLabel(dateStr){
   const p = String(dateStr||'').split('/');
@@ -397,6 +406,7 @@ function applyRolePill(){
   const label = document.getElementById('roleLabel');
   if(myRole==='admin'){ pill.className='role-pill role-admin'; label.textContent='แอดมิน · เพิ่ม/ลบ/แก้ไขได้'; }
   else if(myRole==='viewer_all'){ pill.className='role-pill role-lead'; label.textContent='ดูข้อมูลได้หมด · แก้ไขไม่ได้'; }
+  else if(myRole==='print_view'){ pill.className='role-pill role-lead'; label.textContent='ดูและพิมพ์ได้ · แก้ไขไม่ได้'; }
   else if(myRole==='lead'){ pill.className='role-pill role-lead'; label.textContent='หัวหน้าทีม'+(myTeam?' · ทีม '+myTeam:''); }
   else if(myRole==='sales'){ pill.className='role-pill role-sales'; label.textContent='พนักงานขาย'+(myTeam?' · ทีม '+myTeam:''); }
   else { pill.className='role-pill role-view'; label.textContent='ดูอย่างเดียว'; }
@@ -860,6 +870,8 @@ function buildWorkbook(){
 
   return wb;
 }
+
+document.getElementById('btnPrint').addEventListener('click', ()=>{ window.print(); });
 
 document.getElementById('btnExportExcel').addEventListener('click', ()=>{
   try{

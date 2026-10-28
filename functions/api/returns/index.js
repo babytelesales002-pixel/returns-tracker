@@ -1,7 +1,7 @@
 import { getSessionUser, genId, json, toReturnDto } from '../../_lib/auth.js';
 
 function canSeeAll(user) {
-  return user.role === 'admin' || user.role === 'viewer_all';
+  return user.role === 'admin' || user.role === 'viewer_all' || user.role === 'print_view';
 }
 
 export async function onRequestGet({ request, env }) {
