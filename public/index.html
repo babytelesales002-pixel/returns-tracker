@@ -176,6 +176,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--accent); outline
     </div>
     <div style="display:flex; align-items:center; gap:8px;">
       <span class="role-pill role-view" id="rolePill"><span class="role-dot"></span><span id="roleLabel">กำลังตรวจสอบสิทธิ์…</span></span>
+      <button class="btn btn-ghost" id="btnChangePassword" hidden>เปลี่ยนรหัสผ่าน</button>
       <button class="btn btn-ghost" id="btnLogout" hidden>ออกจากระบบ</button>
     </div>
   </div>
@@ -415,6 +416,7 @@ function applyRolePill(){
   document.getElementById('btnClearData').style.display = isAdmin ? '' : 'none';
   document.getElementById('tabUsers').hidden = !isAdmin;
   document.getElementById('btnLogout').hidden = !me;
+  document.getElementById('btnChangePassword').hidden = !me;
 }
 
 function showLogin(){
@@ -476,6 +478,45 @@ document.getElementById('btnLogout').addEventListener('click', async ()=>{
   try{ await api('/auth/logout', {method:'POST'}); }catch(e){}
   location.reload();
 });
+
+function openChangePasswordModal(){
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="modal-overlay" id="cpOverlay">
+      <div class="modal" style="max-width:420px;">
+        <h3>เปลี่ยนรหัสผ่าน</h3>
+        <div class="form-grid">
+          <div class="field full"><label>รหัสผ่านเดิม</label><input id="cpOld" type="password"></div>
+          <div class="field full"><label>รหัสผ่านใหม่</label><input id="cpNew" type="password" placeholder="อย่างน้อย 4 ตัวอักษร"></div>
+          <div class="field full"><label>ยืนยันรหัสผ่านใหม่</label><input id="cpConfirm" type="password"></div>
+        </div>
+        <div id="cpError" style="color:var(--bad); font-size:.82rem; min-height:18px; margin-top:8px;"></div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="cpCancel">ยกเลิก</button>
+          <button class="btn btn-primary" id="cpSubmit">บันทึก</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('cpCancel').addEventListener('click', closeForm);
+  document.getElementById('cpOverlay').addEventListener('click', (e)=>{ if(e.target.id==='cpOverlay') closeForm(); });
+  document.getElementById('cpSubmit').addEventListener('click', async ()=>{
+    const oldPassword = document.getElementById('cpOld').value;
+    const newPassword = document.getElementById('cpNew').value;
+    const confirm = document.getElementById('cpConfirm').value;
+    const err = document.getElementById('cpError');
+    if(!oldPassword || newPassword.length<4){ err.textContent='กรอกรหัสผ่านเดิม และรหัสผ่านใหม่อย่างน้อย 4 ตัวอักษร'; return; }
+    if(newPassword !== confirm){ err.textContent='รหัสผ่านใหม่ไม่ตรงกัน'; return; }
+    try{
+      await api('/auth/change-password', {method:'POST', body:{oldPassword, newPassword}});
+      closeForm();
+      showToast('เปลี่ยนรหัสผ่านแล้ว');
+    }catch(e){
+      err.textContent = e.status===401 ? 'รหัสผ่านเดิมไม่ถูกต้อง' : 'เปลี่ยนรหัสผ่านไม่สำเร็จ';
+    }
+  });
+}
+document.getElementById('btnChangePassword').addEventListener('click', openChangePasswordModal);
 
 async function init(){
   try{
@@ -1055,10 +1096,48 @@ function renderUsersUi(){
       <td><span class="role-tag ${escapeHtml(u.role||'sales')}">${escapeHtml(ROLE_LABEL[u.role]||u.role||'-')}</span></td>
       <td>${u.team? `<span class="team-tag">${escapeHtml(u.team)}</span>` : '-'}</td>
       <td class="num" style="font-size:.78rem;">${escapeHtml(u.username)}</td>
-      <td><button class="icon-btn danger" data-del-user="${u.id}">ลบ</button></td>
+      <td>
+        <div class="row-actions">
+          <button class="icon-btn" data-reset-user="${u.id}">รีเซ็ตรหัสผ่าน</button>
+          <button class="icon-btn danger" data-del-user="${u.id}">ลบ</button>
+        </div>
+      </td>
     </tr>
   `).join('');
   body.querySelectorAll('[data-del-user]').forEach(b=>b.addEventListener('click', ()=>deleteUser(b.dataset.delUser)));
+  body.querySelectorAll('[data-reset-user]').forEach(b=>b.addEventListener('click', ()=>openResetPasswordModal(b.dataset.resetUser)));
+}
+
+function openResetPasswordModal(userId){
+  const u = appUsers.find(x=>x.id===userId);
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="modal-overlay" id="rpOverlay">
+      <div class="modal" style="max-width:420px;">
+        <h3>รีเซ็ตรหัสผ่าน: ${escapeHtml(u? u.name : '')}</h3>
+        <div class="form-grid">
+          <div class="field full"><label>รหัสผ่านใหม่</label><input id="rpNew" type="password" placeholder="อย่างน้อย 4 ตัวอักษร"></div>
+        </div>
+        <div id="rpError" style="color:var(--bad); font-size:.82rem; min-height:18px; margin-top:8px;"></div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="rpCancel">ยกเลิก</button>
+          <button class="btn btn-primary" id="rpSubmit">บันทึก</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('rpCancel').addEventListener('click', closeForm);
+  document.getElementById('rpOverlay').addEventListener('click', (e)=>{ if(e.target.id==='rpOverlay') closeForm(); });
+  document.getElementById('rpSubmit').addEventListener('click', async ()=>{
+    const newPassword = document.getElementById('rpNew').value;
+    const err = document.getElementById('rpError');
+    if(newPassword.length<4){ err.textContent='รหัสผ่านอย่างน้อย 4 ตัวอักษร'; return; }
+    try{
+      await api('/users/'+userId, {method:'PATCH', body:{newPassword}});
+      closeForm();
+      showToast('รีเซ็ตรหัสผ่านแล้ว');
+    }catch(e){ err.textContent='รีเซ็ตไม่สำเร็จ'; }
+  });
 }
 
 async function deleteUser(id){
